@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stock Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f3f4f6;
+      }
+      .sidebar {
+        transition: transform 0.3s ease-in-out;
+      }
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 50;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.5);
+        align-items: center;
+        justify-content: center;
+      }
+      .modal-content {
+        background-color: #fff;
+        margin: auto;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        width: 90%;
+        max-width: 500px;
+        animation: slide-down 0.3s ease-out;
+      }
+      @keyframes slide-down {
+        from {
+          transform: translateY(-50px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      .table-container {
+        max-height: calc(100vh - 250px);
+        overflow-y: auto;
+      }
+
+      /* Responsive Table to Card styles */
+      @media (max-width: 767px) {
+        .responsive-table thead {
+          display: none;
+        }
+        .responsive-table tr {
+          display: block;
+          margin-bottom: 1rem;
+          border-radius: 0.5rem;
+          overflow: hidden;
+          box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1),
+            0 1px 2px 0 rgba(0, 0, 0, 0.06);
+          border: none;
+        }
+        .responsive-table td {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.75rem 1rem;
+          text-align: right;
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .responsive-table td:last-child {
+          border-bottom: none;
+        }
+        .responsive-table td::before {
+          content: attr(data-label);
+          font-weight: 600;
+          text-align: left;
+          padding-right: 1rem;
+        }
+        .responsive-table .actions-cell {
+          justify-content: center;
+          background-color: #f9fafb;
+        }
+        .responsive-table .actions-cell::before {
+          content: ""; /* No label for actions */
+        }
+      }
+    </style>
+  </head>
+  <body class="flex h-screen">
+    <aside
+      id="sidebar"
+      class="sidebar bg-gray-800 text-white w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 md:relative md:translate-x-0 transform -translate-x-full z-20"
+    >
+      <div class="flex items-center justify-between px-4">
+        <a href="#dashboard" class="text-white text-2xl font-semibold"
+          >StockFlow</a
+        >
+        <button id="close-sidebar" class="md:hidden text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <nav id="nav-menu">
+        <a
+          href="#dashboard"
+          class="flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 nav-link active-link"
+        >
+          <i class="fas fa-tachometer-alt mr-3"></i> Dashboard
+        </a>
+        <a
+          href="#warehouse"
+          class="flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 nav-link"
+        >
+          <i class="fas fa-warehouse mr-3"></i> Main Warehouse
+        </a>
+        <div id="branch-links"></div>
+        <a
+          href="#transactions"
+          class="flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 nav-link"
+        >
+          <i class="fas fa-history mr-3"></i> Transaction History
+        </a>
+        <a
+          href="#settings"
+          class="flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 nav-link"
+        >
+          <i class="fas fa-cog mr-3"></i> Settings
+        </a>
+      </nav>
+      <div class="absolute bottom-0 w-full left-0 px-2 py-5">
+        <div id="user-profile" class="px-4 py-3 border-t border-gray-700">
+          <p id="user-role" class="text-sm font-semibold">Admin</p>
+          <a
+            href="#"
+            id="logout-btn"
+            class="text-sm text-red-400 hover:text-red-300"
+            >Logout</a
+          >
+        </div>
+      </div>
+    </aside>
+
+    <div
+      id="main-content"
+      class="main-content flex-1 flex flex-col overflow-hidden"
+    >
+      <header
+        class="bg-white shadow-md p-4 flex justify-between items-center relative z-10"
+      >
+        <button id="open-sidebar" class="md:hidden text-gray-600">
+          <i class="fas fa-bars text-2xl"></i>
+        </button>
+        <h1
+          id="page-title"
+          class="text-xl md:text-2xl font-semibold text-gray-800 truncate"
+        >
+          Dashboard
+        </h1>
+        <div class="flex items-center space-x-4">
+          <div id="desktop-search-container" class="relative hidden md:block">
+            <input
+              type="text"
+              id="search-bar"
+              class="border rounded-full py-2 px-4 w-64"
+              placeholder="Search items..."
+            />
+            <i
+              class="fas fa-search absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+            ></i>
+          </div>
+          <button id="mobile-search-btn" class="md:hidden text-gray-600">
+            <i class="fas fa-sarch text-2xl"></i>
+          </button>
+        </div>
+      </header>
+      <div id="mobile-search-container" class="bg-gray-100 p-2 hidden">
+        <input
+          type="text"
+          id="mobile-search-bar"
+          class="w-full border rounded-full py-2 px-4"
+          placeholder="Search items..."
+        />
+      </div>
+
+      <main
+        id="app"
+        class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-6"
+      >
+        <div id="dashboard-view" class="view">
+          <div
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6"
+          >
+            <div class="bg-white p-6 rounded-lg shadow">
+              <h3 class="text-gray-500 text-sm font-medium">Total Items</h3>
+              <p id="total-items" class="text-3xl font-bold text-gray-800">0</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+              <h3 class="text-gray-500 text-sm font-medium">
+                Total Stock Value
+              </h3>
+              <p id="total-value" class="text-3xl font-bold text-gray-800">
+                $0
+              </p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+              <h3 class="text-gray-500 text-sm font-medium">Low Stock Items</h3>
+              <p id="low-stock-count" class="text-3xl font-bold text-red-500">
+                0
+              </p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+              <h3 class="text-gray-500 text-sm font-medium">Branches</h3>
+              <p id="branch-count" class="text-3xl font-bold text-gray-800">
+                0
+              </p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white p-4 md:p-6 rounded-lg shadow">
+              <h3 class="font-semibold mb-4">Recent Transactions</h3>
+              <div class="table-container">
+                <table class="w-full text-sm text-left text-gray-500">
+                  <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                    <tr>
+                      <th scope="col" class="px-6 py-3">Item</th>
+                      <th scope="col" class="px-6 py-3">Type</th>
+                      <th scope="col" class="px-6 py-3">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recent-transactions-table"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="bg-white p-4 md:p-6 rounded-lg shadow">
+              <h3 class="font-semibold mb-4 text-red-500">Low Stock Items</h3>
+              <div class="table-container">
+                <table class="w-full text-sm text-left text-gray-500">
+                  <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                    <tr>
+                      <th scope="col" class="px-6 py-3">Item</th>
+                      <th scope="col" class="px-6 py-3">Location</th>
+                      <th scope="col" class="px-6 py-3">Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody id="low-stock-table"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="item-view" class="view hidden">
+          <div class="flex justify-between items-center mb-6">
+            <h2
+              id="item-view-title"
+              class="text-2xl md:text-3xl font-bold text-gray-800"
+            ></h2>
+            <button
+              id="add-item-btn"
+              class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow flex items-center"
+            >
+              <i class="fas fa-plus mr-2"></i
+              ><span class="hidden sm:inline">Add New Item</span>
+            </button>
+          </div>
+          <div class="bg-white shadow-md rounded-lg overflow-hidden">
+            <div class="table-container">
+              <table
+                class="w-full text-sm text-left text-gray-500 responsive-table"
+              >
+                <thead
+                  class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0"
+                >
+                  <tr>
+                    <th scope="col" class="px-6 py-3">ID</th>
+                    <th scope="col" class="px-6 py-3">Name</th>
+                    <th scope="col" class="px-6 py-3">Category</th>
+                    <th scope="col" class="px-6 py-3">Quantity</th>
+                    <th scope="col" class="px-6 py-3">Price</th>
+                    <th scope="col" class="px-6 py-3">Supplier</th>
+                    <th scope="col" class="px-6 py-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="item-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="transactions-view" class="view hidden">
+          <h2 class="text-3xl font-bold text-gray-800 mb-6">
+            Transaction History
+          </h2>
+          <div class="bg-white shadow-md rounded-lg overflow-hidden">
+            <div class="table-container">
+              <table
+                class="w-full text-sm text-left text-gray-500 responsive-table"
+              >
+                <thead
+                  class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0"
+                >
+                  <tr>
+                    <th scope="col" class="px-6 py-3">Date</th>
+                    <th scope="col" class="px-6 py-3">Item/Action</th>
+                    <th scope="col" class="px-6 py-3">Type</th>
+                    <th scope="col" class="px-6 py-3">Details</th>
+                  </tr>
+                </thead>
+                <tbody id="transaction-history-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div id="settings-view" class="view hidden">
+          <h2 class="text-3xl font-bold text-gray-800 mb-6">Settings</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white p-6 rounded-lg shadow">
+              <h3 class="font-semibold mb-4">Branch Management</h3>
+              <form id="add-branch-form">
+                <input
+                  type="text"
+                  id="new-branch-name"
+                  placeholder="New Branch Name"
+                  class="w-full p-2 border rounded mb-2"
+                  required
+                />
+                <button
+                  type="submit"
+                  class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+                >
+                  Add Branch
+                </button>
+              </form>
+              <hr class="my-4" />
+              <h4 class="font-semibold mb-2">Existing Branches</h4>
+              <ul id="branch-list" class="space-y-2"></ul>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+              <h3 class="font-semibold mb-4">User Management</h3>
+              <p class="text-gray-600 mb-2">
+                Current Role:
+                <span id="current-user-role" class="font-bold">Admin</span>
+              </p>
+              <select id="role-switcher" class="w-full p-2 border rounded">
+                <option value="admin">Admin</option>
+                <option value="branch_manager">Branch Manager</option>
+              </select>
+              <p class="text-sm text-gray-500 mt-2">
+                Note: Branch Managers can only view their assigned branch and
+                cannot add/delete items.
+              </p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+              <h3 class="font-semibold mb-4">Data Management</h3>
+              <button
+                id="reset-data-btn"
+                class="w-full bg-red-500 text-white p-2 rounded hover:bg-red-600"
+              >
+                Reset All Data
+              </button>
+              <p class="text-sm text-gray-500 mt-2">
+                Warning: This will delete all items, branches, and transaction
+                history.
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div id="add-item-modal" class="modal">
+      <div class="modal-content">
+        <h2 class="text-2xl font-bold mb-6">Add New Item</h2>
+        <form id="add-item-form">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              id="add-item-name"
+              placeholder="Item Name"
+              class="p-3 border rounded w-full"
+              required
+            />
+            <input
+              type="text"
+              id="add-item-category"
+              placeholder="Category"
+              class="p-3 border rounded w-full"
+              required
+            />
+            <input
+              type="number"
+              id="add-item-quantity"
+              placeholder="Quantity"
+              class="p-3 border rounded w-full"
+              required
+              min="0"
+            />
+            <input
+              type="number"
+              id="add-item-price"
+              placeholder="Price (per unit)"
+              class="p-3 border rounded w-full"
+              required
+              min="0"
+              step="0.01"
+            />
+            <input
+              type="text"
+              id="add-item-supplier"
+              placeholder="Supplier"
+              class="p-3 border rounded w-full md:col-span-2"
+            />
+          </div>
+          <div class="mt-6 flex justify-end space-x-4">
+            <button
+              type="button"
+              id="cancel-add-item-btn"
+              class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+            >
+              Save Item
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div id="edit-item-modal" class="modal">
+      <div class="modal-content">
+        <h2 class="text-2xl font-bold mb-6">Edit Item</h2>
+        <form id="edit-item-form">
+          <input type="hidden" id="edit-item-id" />
+          <input type="hidden" id="edit-item-location" />
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              id="edit-item-name"
+              placeholder="Item Name"
+              class="p-3 border rounded w-full"
+              required
+            />
+            <input
+              type="text"
+              id="edit-item-category"
+              placeholder="Category"
+              class="p-3 border rounded w-full"
+              required
+            />
+            <input
+              type="number"
+              id="edit-item-quantity"
+              placeholder="Quantity"
+              class="p-3 border rounded w-full"
+              required
+              min="0"
+            />
+            <input
+              type="number"
+              id="edit-item-price"
+              placeholder="Price (per unit)"
+              class="p-3 border rounded w-full"
+              required
+              min="0"
+              step="0.01"
+            />
+            <input
+              type="text"
+              id="edit-item-supplier"
+              placeholder="Supplier"
+              class="p-3 border rounded w-full md:col-span-2"
+            />
+          </div>
+          <div class="mt-6 flex justify-end space-x-4">
+            <button
+              type="button"
+              id="cancel-edit-item-btn"
+              class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+            >
+              Update Item
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div id="transfer-modal" class="modal">
+      <div class="modal-content">
+        <h2 class="text-2xl font-bold mb-6">Transfer Item</h2>
+        <form id="transfer-form">
+          <input type="hidden" id="transfer-item-id" />
+          <p class="mb-4">
+            Transferring: <strong id="transfer-item-name"></strong>
+          </p>
+          <p class="mb-4">
+            Available in Warehouse:
+            <strong id="transfer-available-qty"></strong>
+          </p>
+          <div class="grid grid-cols-2 gap-4">
+            <input
+              type="number"
+              id="transfer-quantity"
+              placeholder="Quantity to Transfer"
+              class="p-3 border rounded w-full"
+              required
+              min="1"
+            />
+            <select
+              id="transfer-branch"
+              class="p-3 border rounded w-full"
+              required
+            >
+              <option value="">Select Branch</option>
+            </select>
+          </div>
+          <div class="mt-6 flex justify-end space-x-4">
+            <button
+              type="button"
+              id="cancel-transfer-btn"
+              class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
+            >
+              Transfer
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // --- DATA MANAGEMENT (no changes) ---
+        const getInitialData = (key, defaultValue) => {
+          const storedData = localStorage.getItem(key);
+          return storedData ? JSON.parse(storedData) : defaultValue;
+        };
+        const saveData = (key, data) => {
+          localStorage.setItem(key, JSON.stringify(data));
+        };
+
+        // --- STATE MANAGEMENT (no changes) ---
+        let state = {
+          items: getInitialData("items", [
+            {
+              id: 1,
+              name: "Laptop Pro",
+              category: "Electronics",
+              quantity: 25,
+              price: 1200,
+              supplier: "ElecSupplies Inc.",
+            },
+            {
+              id: 2,
+              name: "Wireless Mouse",
+              category: "Accessories",
+              quantity: 150,
+              price: 25,
+              supplier: "ElecSupplies Inc.",
+            },
+            {
+              id: 3,
+              name: "Office Chair",
+              category: "Furniture",
+              quantity: 40,
+              price: 150,
+              supplier: "FurniCo",
+            },
+            {
+              id: 4,
+              name: "LED Monitor",
+              category: "Electronics",
+              quantity: 50,
+              price: 300,
+              supplier: "ViewMax",
+            },
+            {
+              id: 5,
+              name: "Mechanical Keyboard",
+              category: "Accessories",
+              quantity: 5,
+              price: 120,
+              supplier: "ClickyKeys",
+            },
+          ]),
+          branches: getInitialData("branches", [
+            { id: 1, name: "Cebu Branch", items: [] },
+            { id: 2, name: "Davao Branch", items: [] },
+          ]),
+          transactions: getInitialData("transactions", []),
+          currentUserRole: getInitialData("userRole", "admin"),
+          lowStockThreshold: 10,
+        };
+
+        // --- UI SELECTORS ---
+        const sidebar = document.getElementById("sidebar");
+        const openSidebarBtn = document.getElementById("open-sidebar");
+        const closeSidebarBtn = document.getElementById("close-sidebar");
+        const mainContent = document.getElementById("main-content");
+        const navLinks = document.querySelectorAll(".nav-link");
+        const pageTitle = document.getElementById("page-title");
+        const views = document.querySelectorAll(".view");
+        const itemTableBody = document.getElementById("item-table-body");
+        const addItemBtn = document.getElementById("add-item-btn");
+        const addItemModal = document.getElementById("add-item-modal");
+        const cancelAddItemBtn = document.getElementById("cancel-add-item-btn");
+        const addItemForm = document.getElementById("add-item-form");
+        const editItemModal = document.getElementById("edit-item-modal");
+        const cancelEditItemBtn = document.getElementById(
+          "cancel-edit-item-btn"
+        );
+        const editItemForm = document.getElementById("edit-item-form");
+        const transferModal = document.getElementById("transfer-modal");
+        const cancelTransferBtn = document.getElementById(
+          "cancel-transfer-btn"
+        );
+        const transferForm = document.getElementById("transfer-form");
+        const addBranchForm = document.getElementById("add-branch-form");
+        const branchList = document.getElementById("branch-list");
+        const branchLinksContainer = document.getElementById("branch-links");
+        const roleSwitcher = document.getElementById("role-switcher");
+        const userRoleDisplay = document.getElementById("user-role");
+        const currentUserRoleDisplay =
+          document.getElementById("current-user-role");
+        const resetDataBtn = document.getElementById("reset-data-btn");
+
+        // Search Bar Selectors
+        const searchBar = document.getElementById("search-bar");
+        const mobileSearchBar = document.getElementById("mobile-search-bar");
+        const mobileSearchBtn = document.getElementById("mobile-search-btn");
+        const mobileSearchContainer = document.getElementById(
+          "mobile-search-container"
+        );
+        const desktopSearchContainer = document.getElementById(
+          "desktop-search-container"
+        );
+
+        // --- RENDER FUNCTIONS ---
+        // UPDATED: renderItems now adds data-label for responsive cards
+        const renderItems = (container, items, locationName) => {
+          container.innerHTML = "";
+          if (items.length === 0) {
+            container.innerHTML = `<tr><td colspan="7" class="text-center py-4 block">No items found.</td></tr>`;
+            return;
+          }
+          items.forEach((item) => {
+            const row = document.createElement("tr");
+            row.className = "bg-white border-b hover:bg-gray-50";
+            row.innerHTML = `
+                <td data-label="ID">${item.id}</td>
+                <td data-label="Name" class="font-medium text-gray-900 whitespace-nowrap">${
+                  item.name
+                }</td>
+                <td data-label="Category">${item.category}</td>
+                <td data-label="Quantity" class="${
+                  item.quantity <= state.lowStockThreshold
+                    ? "text-red-500 font-bold"
+                    : ""
+                }">${item.quantity}</td>
+                <td data-label="Price">$${item.price.toFixed(2)}</td>
+                <td data-label="Supplier">${item.supplier || "N/A"}</td>
+                <td class="actions-cell">
+                    <div class="flex justify-center items-center space-x-2">
+                        <button class="text-blue-600 hover:text-blue-900 action-btn p-2" data-action="edit" data-id="${
+                          item.id
+                        }" data-location="${locationName}" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button class="text-red-600 hover:text-red-900 action-btn p-2" data-action="delete" data-id="${
+                          item.id
+                        }" data-location="${locationName}" title="Delete"><i class="fas fa-trash"></i></button>
+                        ${
+                          locationName === "warehouse"
+                            ? `<button class="text-green-600 hover:text-green-900 action-btn p-2" data-action="transfer" data-id="${item.id}" title="Transfer"><i class="fas fa-truck"></i></button>`
+                            : ""
+                        }
+                    </div>
+                </td>
+            `;
+            container.appendChild(row);
+          });
+        };
+
+        // --- Other Render Functions (no major changes needed) ---
+        const renderBranches = () => {
+          branchList.innerHTML = "";
+          state.branches.forEach((branch) => {
+            const li = document.createElement("li");
+            li.className =
+              "flex justify-between items-center p-2 rounded hover:bg-gray-100";
+            li.innerHTML = `<span>${branch.name}</span><button data-id="${branch.id}" class="delete-branch-btn text-red-500 hover:text-red-700" title="Delete Branch"><i class="fas fa-trash-alt"></i></button>`;
+            branchList.appendChild(li);
+          });
+          branchLinksContainer.innerHTML = "";
+          if (state.branches.length > 0) {
+            const branchHeader = document.createElement("p");
+            branchHeader.className =
+              "px-4 text-xs uppercase text-gray-400 mt-4 mb-2";
+            branchHeader.textContent = "Branches";
+            branchLinksContainer.appendChild(branchHeader);
+            state.branches.forEach((branch) => {
+              const link = document.createElement("a");
+              link.href = `#branch-${branch.id}`;
+              link.className =
+                "flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 nav-link";
+              link.innerHTML = `<i class="fas fa-store-alt mr-3"></i> ${branch.name}`;
+              branchLinksContainer.appendChild(link);
+            });
+            document
+              .querySelectorAll("#branch-links .nav-link")
+              .forEach((link) => {
+                link.addEventListener("click", handleNavigation);
+              });
+          }
+        };
+        const renderDashboard = () => {
+          const totalItems =
+            state.items.reduce((sum, item) => sum + item.quantity, 0) +
+            state.branches
+              .flatMap((b) => b.items)
+              .reduce((sum, item) => sum + item.quantity, 0);
+          const totalValue =
+            state.items.reduce(
+              (sum, item) => sum + item.quantity * item.price,
+              0
+            ) +
+            state.branches
+              .flatMap((b) => b.items)
+              .reduce((sum, item) => sum + item.quantity * item.price, 0);
+          const allItemsWithLocation = [
+            ...state.items.map((i) => ({ ...i, location: "Warehouse" })),
+            ...state.branches.flatMap((b) =>
+              b.items.map((i) => ({ ...i, location: b.name }))
+            ),
+          ];
+          const lowStockItems = allItemsWithLocation.filter(
+            (item) => item.quantity <= state.lowStockThreshold
+          );
+          document.getElementById("total-items").textContent = totalItems;
+          document.getElementById(
+            "total-value"
+          ).textContent = `$${totalValue.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`;
+          document.getElementById("low-stock-count").textContent =
+            lowStockItems.length;
+          document.getElementById("branch-count").textContent =
+            state.branches.length;
+          const recentTransactionsTable = document.getElementById(
+            "recent-transactions-table"
+          );
+          recentTransactionsTable.innerHTML = "";
+          state.transactions
+            .slice(-5)
+            .reverse()
+            .forEach((t) => {
+              const row = document.createElement("tr");
+              row.className = "bg-white border-b";
+              row.innerHTML = `<td class="px-6 py-4">${
+                t.itemName
+              }</td><td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${
+                t.type === "ADD"
+                  ? "bg-green-100 text-green-800"
+                  : t.type === "TRANSFER"
+                  ? "bg-blue-100 text-blue-800"
+                  : t.type === "DELETE_BRANCH"
+                  ? "bg-purple-100 text-purple-800"
+                  : "bg-yellow-100 text-yellow-800"
+              }">${t.type}</span></td><td class="px-6 py-4">${new Date(
+                t.date
+              ).toLocaleDateString()}</td>`;
+              recentTransactionsTable.appendChild(row);
+            });
+          const lowStockTable = document.getElementById("low-stock-table");
+          lowStockTable.innerHTML = "";
+          lowStockItems.forEach((item) => {
+            const row = document.createElement("tr");
+            row.className = "bg-white border-b";
+            row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900">${item.name}</td><td class="px-6 py-4">${item.location}</td><td class="px-6 py-4 text-red-500 font-bold">${item.quantity}</td>`;
+            lowStockTable.appendChild(row);
+          });
+        };
+        const renderTransactions = () => {
+          const tableBody = document.getElementById(
+            "transaction-history-table"
+          );
+          tableBody.innerHTML = "";
+          state.transactions
+            .slice()
+            .reverse()
+            .forEach((t) => {
+              const row = document.createElement("tr");
+              row.className = "bg-white border-b";
+              row.innerHTML = `
+                  <td data-label="Date">${new Date(
+                    t.date
+                  ).toLocaleString()}</td>
+                  <td data-label="Item/Action" class="font-medium">${
+                    t.itemName
+                  }</td>
+                  <td data-label="Type"><span class="px-2 py-1 text-xs font-medium rounded-full ${
+                    t.type === "ADD"
+                      ? "bg-green-100 text-green-800"
+                      : t.type === "TRANSFER"
+                      ? "bg-blue-100 text-blue-800"
+                      : t.type === "EDIT"
+                      ? "bg-yellow-100 text-yellow-800"
+                      : t.type === "DELETE_BRANCH"
+                      ? "bg-purple-100 text-purple-800"
+                      : "bg-red-100 text-red-800"
+                  }">${t.type}</span></td>
+                  <td data-label="Details">${t.details}</td>
+              `;
+              tableBody.appendChild(row);
+            });
+        };
+
+        // --- LOGIC FUNCTIONS (with UI permission updates) ---
+        const updateUIPermissions = () => {
+          const isBranchView = window.location.hash.startsWith("#branch-");
+          const isAdmin = state.currentUserRole === "admin";
+          if (addItemBtn) {
+            const canAddItem = isAdmin || !isBranchView;
+            addItemBtn.style.display = canAddItem ? "flex" : "none";
+          }
+          const actionButtons = document.querySelectorAll(".action-btn");
+          actionButtons.forEach((btn) => {
+            const action = btn.dataset.action;
+            const location = btn.dataset.location;
+            let shouldShow = false;
+            if (action === "edit") {
+              shouldShow = isAdmin || location === "warehouse";
+            } else if (action === "delete" || action === "transfer") {
+              shouldShow = isAdmin;
+            }
+            btn.style.display = shouldShow ? "inline-block" : "none";
+          });
+        };
+
+        const showView = (hash) => {
+          views.forEach((view) => view.classList.add("hidden"));
+          navLinks.forEach((link) =>
+            link.classList.remove("active-link", "bg-gray-700")
+          );
+          const activeLink = document.querySelector(`a[href="${hash}"]`);
+          if (activeLink)
+            activeLink.classList.add("active-link", "bg-gray-700");
+
+          let currentView;
+          let title;
+          if (hash.startsWith("#branch-")) {
+            currentView = document.getElementById("item-view");
+            const branchId = parseInt(hash.replace("#branch-", ""));
+            const branch = state.branches.find((b) => b.id === branchId);
+            if (branch) {
+              title = `${branch.name} Stock`;
+              document.getElementById("item-view-title").textContent = title;
+              renderItems(itemTableBody, branch.items, `branch-${branch.id}`);
+            } else {
+              window.location.hash = "#dashboard";
+              return;
+            }
+          } else {
+            switch (hash) {
+              case "#warehouse":
+                currentView = document.getElementById("item-view");
+                title = "Main Warehouse";
+                document.getElementById("item-view-title").textContent = title;
+                renderItems(itemTableBody, state.items, "warehouse");
+                break;
+              case "#transactions":
+                currentView = document.getElementById("transactions-view");
+                title = "Transaction History";
+                renderTransactions();
+                break;
+              case "#settings":
+                currentView = document.getElementById("settings-view");
+                title = "Settings";
+                break;
+              default:
+                currentView = document.getElementById("dashboard-view");
+                title = "Dashboard";
+                renderDashboard();
+                break;
+            }
+          }
+          if (currentView) currentView.classList.remove("hidden");
+          pageTitle.textContent = title;
+
+          // Hide or show search based on view
+          const isSearchableView =
+            hash === "#warehouse" ||
+            hash.startsWith("#branch-") ||
+            hash === "#transactions";
+          mobileSearchBtn.style.display = isSearchableView ? "block" : "none";
+          desktopSearchContainer.style.display = isSearchableView
+            ? "block"
+            : "none";
+          if (!isSearchableView) mobileSearchContainer.classList.add("hidden");
+          searchBar.value = "";
+          mobileSearchBar.value = "";
+
+          updateUIPermissions();
+        };
+
+        // --- Core logic functions (Add, Edit, Delete, Transfer - no changes)
+        const openModal = (modal) => (modal.style.display = "flex");
+        const closeModal = (modal) => (modal.style.display = "none");
+        const logTransaction = (type, itemName, details) => {
+          state.transactions.push({
+            id: Date.now(),
+            date: new Date().toISOString(),
+            type,
+            itemName,
+            details,
+          });
+          saveData("transactions", state.transactions);
+        };
+        const handleAddItem = (e) => {
+          e.preventDefault();
+          const newItem = {
+            id: Date.now(),
+            name: document.getElementById("add-item-name").value,
+            category: document.getElementById("add-item-category").value,
+            quantity: parseInt(
+              document.getElementById("add-item-quantity").value
+            ),
+            price: parseFloat(document.getElementById("add-item-price").value),
+            supplier: document.getElementById("add-item-supplier").value,
+          };
+          const locationHash = window.location.hash;
+          if (locationHash === "#warehouse") {
+            state.items.push(newItem);
+            logTransaction(
+              "ADD",
+              newItem.name,
+              `Added ${newItem.quantity} to Warehouse.`
+            );
+          } else if (locationHash.startsWith("#branch-")) {
+            const branchId = parseInt(locationHash.replace("#branch-", ""));
+            const branch = state.branches.find((b) => b.id === branchId);
+            branch.items.push(newItem);
+            logTransaction(
+              "ADD",
+              newItem.name,
+              `Added ${newItem.quantity} to ${branch.name}.`
+            );
+          }
+          saveData("items", state.items);
+          saveData("branches", state.branches);
+          closeModal(addItemModal);
+          showView(locationHash);
+        };
+        const handleEditItem = (e) => {
+          e.preventDefault();
+          const id = parseInt(document.getElementById("edit-item-id").value);
+          const location = document.getElementById("edit-item-location").value;
+          const updatedItemData = {
+            name: document.getElementById("edit-item-name").value,
+            category: document.getElementById("edit-item-category").value,
+            quantity: parseInt(
+              document.getElementById("edit-item-quantity").value
+            ),
+            price: parseFloat(document.getElementById("edit-item-price").value),
+            supplier: document.getElementById("edit-item-supplier").value,
+          };
+          let oldItem, itemIndex;
+          if (location === "warehouse") {
+            itemIndex = state.items.findIndex((item) => item.id === id);
+            oldItem = { ...state.items[itemIndex] };
+            state.items[itemIndex] = { ...oldItem, ...updatedItemData };
+            logTransaction(
+              "EDIT",
+              updatedItemData.name,
+              `Warehouse item updated. Qty: ${oldItem.quantity} -> ${updatedItemData.quantity}`
+            );
+          } else if (location.startsWith("branch-")) {
+            const branchId = parseInt(location.replace("branch-", ""));
+            const branch = state.branches.find((b) => b.id === branchId);
+            itemIndex = branch.items.findIndex((item) => item.id === id);
+            oldItem = { ...branch.items[itemIndex] };
+            branch.items[itemIndex] = { ...oldItem, ...updatedItemData };
+            logTransaction(
+              "EDIT",
+              updatedItemData.name,
+              `Item in ${branch.name} updated. Qty: ${oldItem.quantity} -> ${updatedItemData.quantity}`
+            );
+          }
+          saveData("items", state.items);
+          saveData("branches", state.branches);
+          closeModal(editItemModal);
+          showView(window.location.hash);
+        };
+        const handleActionClick = (e) => {
+          const target = e.target.closest(".action-btn");
+          if (!target) return;
+          const action = target.dataset.action;
+          const id = parseInt(target.dataset.id);
+          const location = target.dataset.location;
+          if (action === "edit") {
+            let item;
+            if (location === "warehouse")
+              item = state.items.find((i) => i.id === id);
+            else if (location.startsWith("branch-")) {
+              const branchId = parseInt(location.replace("branch-", ""));
+              item = state.branches
+                .find((b) => b.id === branchId)
+                .items.find((i) => i.id === id);
+            }
+            if (item) {
+              document.getElementById("edit-item-id").value = item.id;
+              document.getElementById("edit-item-location").value = location;
+              document.getElementById("edit-item-name").value = item.name;
+              document.getElementById("edit-item-category").value =
+                item.category;
+              document.getElementById("edit-item-quantity").value =
+                item.quantity;
+              document.getElementById("edit-item-price").value = item.price;
+              document.getElementById("edit-item-supplier").value =
+                item.supplier || "";
+              const canEditDetails = state.currentUserRole === "admin";
+              document
+                .querySelectorAll("#edit-item-form input:not([type=hidden])")
+                .forEach((input) => {
+                  if (input.id !== "edit-item-quantity")
+                    input.disabled = !canEditDetails;
+                });
+              openModal(editItemModal);
+            }
+          } else if (action === "delete") {
+            if (confirm("Are you sure?")) {
+              let itemName;
+              if (location === "warehouse") {
+                const itemIndex = state.items.findIndex((i) => i.id === id);
+                itemName = state.items[itemIndex].name;
+                state.items.splice(itemIndex, 1);
+                logTransaction("DELETE", itemName, `Deleted from Warehouse.`);
+              } else if (location.startsWith("branch-")) {
+                const branchId = parseInt(location.replace("branch-", ""));
+                const branch = state.branches.find((b) => b.id === branchId);
+                const itemIndex = branch.items.findIndex((i) => i.id === id);
+                itemName = branch.items[itemIndex].name;
+                branch.items.splice(itemIndex, 1);
+                logTransaction(
+                  "DELETE",
+                  itemName,
+                  `Deleted from ${branch.name}.`
+                );
+              }
+              saveData("items", state.items);
+              saveData("branches", state.branches);
+              showView(window.location.hash);
+            }
+          } else if (action === "transfer") {
+            const item = state.items.find((i) => i.id === id);
+            if (item) {
+              document.getElementById("transfer-item-id").value = item.id;
+              document.getElementById("transfer-item-name").textContent =
+                item.name;
+              document.getElementById("transfer-available-qty").textContent =
+                item.quantity;
+              document.getElementById("transfer-quantity").max = item.quantity;
+              const branchSelect = document.getElementById("transfer-branch");
+              branchSelect.innerHTML =
+                '<option value="">Select Branch</option>';
+              state.branches.forEach((branch) => {
+                const option = document.createElement("option");
+                option.value = branch.id;
+                option.textContent = branch.name;
+                branchSelect.appendChild(option);
+              });
+              openModal(transferModal);
+            }
+          }
+        };
+        const handleTransferItem = (e) => {
+          e.preventDefault();
+          const itemId = parseInt(
+            document.getElementById("transfer-item-id").value
+          );
+          const branchId = parseInt(
+            document.getElementById("transfer-branch").value
+          );
+          const quantity = parseInt(
+            document.getElementById("transfer-quantity").value
+          );
+          const warehouseItem = state.items.find((i) => i.id === itemId);
+          const branch = state.branches.find((b) => b.id === branchId);
+          if (
+            warehouseItem &&
+            branch &&
+            quantity > 0 &&
+            quantity <= warehouseItem.quantity
+          ) {
+            warehouseItem.quantity -= quantity;
+            let branchItem = branch.items.find((i) => i.id === itemId);
+            if (branchItem) branchItem.quantity += quantity;
+            else {
+              branchItem = { ...warehouseItem, quantity: quantity };
+              delete branchItem.supplier;
+              branch.items.push(branchItem);
+            }
+            logTransaction(
+              "TRANSFER",
+              warehouseItem.name,
+              `Transferred ${quantity} from Warehouse to ${branch.name}.`
+            );
+            saveData("items", state.items);
+            saveData("branches", state.branches);
+            closeModal(transferModal);
+            showView("#warehouse");
+          } else alert("Invalid transfer.");
+        };
+
+        const handleNavigation = (e) => {
+          e.preventDefault();
+          window.location.hash = e.currentTarget.hash;
+        };
+
+        const handleSearch = (e) => {
+          const searchTerm = e.target.value.toLowerCase();
+          const locationHash = window.location.hash;
+          let itemsToFilter, locationName, tableBody;
+
+          if (locationHash === "#warehouse") {
+            itemsToFilter = state.items;
+            locationName = "warehouse";
+            tableBody = itemTableBody;
+          } else if (locationHash.startsWith("#branch-")) {
+            const branchId = parseInt(locationHash.replace("#branch-", ""));
+            const branch = state.branches.find((b) => b.id === branchId);
+            itemsToFilter = branch.items;
+            locationName = `branch-${branchId}`;
+            tableBody = itemTableBody;
+          } else if (locationHash === "#transactions") {
+            itemsToFilter = state.transactions;
+            tableBody = document.getElementById("transaction-history-table");
+            const filteredItems = itemsToFilter.filter(
+              (t) =>
+                t.itemName.toLowerCase().includes(searchTerm) ||
+                t.details.toLowerCase().includes(searchTerm)
+            );
+            renderTransactions(filteredItems); // Special case for transactions
+            return;
+          } else return;
+
+          const filteredItems = itemsToFilter.filter(
+            (item) =>
+              item.name.toLowerCase().includes(searchTerm) ||
+              item.category?.toLowerCase().includes(searchTerm) ||
+              item.supplier?.toLowerCase().includes(searchTerm)
+          );
+          renderItems(tableBody, filteredItems, locationName);
+          updateUIPermissions();
+        };
+
+        const updateUserRole = (newRole) => {
+          state.currentUserRole = newRole;
+          saveData("userRole", newRole);
+          const roleText =
+            newRole.charAt(0).toUpperCase() +
+            newRole.slice(1).replace("_", " ");
+          userRoleDisplay.textContent = roleText;
+          currentUserRoleDisplay.textContent = roleText;
+          showView(window.location.hash);
+        };
+
+        // --- EVENT LISTENERS ---
+        window.addEventListener("hashchange", () =>
+          showView(window.location.hash)
+        );
+        openSidebarBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          sidebar.classList.remove("-translate-x-full");
+          sidebar.classList.add("translate-x-0");
+        });
+        const closeMobileSidebar = () => {
+          sidebar.classList.remove("translate-x-0");
+          sidebar.classList.add("-translate-x-full");
+        };
+        closeSidebarBtn.addEventListener("click", closeMobileSidebar);
+        mainContent.addEventListener("click", () => {
+          if (
+            window.innerWidth < 768 &&
+            sidebar.classList.contains("translate-x-0")
+          )
+            closeMobileSidebar();
+        });
+        navLinks.forEach((link) =>
+          link.addEventListener("click", handleNavigation)
+        );
+        addItemBtn.addEventListener("click", () => {
+          addItemForm.reset();
+          openModal(addItemModal);
+        });
+        cancelAddItemBtn.addEventListener("click", () =>
+          closeModal(addItemModal)
+        );
+        addItemForm.addEventListener("submit", handleAddItem);
+        cancelEditItemBtn.addEventListener("click", () =>
+          closeModal(editItemModal)
+        );
+        editItemForm.addEventListener("submit", handleEditItem);
+        itemTableBody.addEventListener("click", handleActionClick);
+        cancelTransferBtn.addEventListener("click", () =>
+          closeModal(transferModal)
+        );
+        transferForm.addEventListener("submit", handleTransferItem);
+        addBranchForm.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const newBranchName = document
+            .getElementById("new-branch-name")
+            .value.trim();
+          if (newBranchName) {
+            state.branches.push({
+              id: Date.now(),
+              name: newBranchName,
+              items: [],
+            });
+            saveData("branches", state.branches);
+            renderBranches();
+            addBranchForm.reset();
+          }
+        });
+        branchList.addEventListener("click", (e) => {
+          const deleteBtn = e.target.closest(".delete-branch-btn");
+          if (deleteBtn) {
+            const branchId = parseInt(deleteBtn.dataset.id);
+            const branchToDelete = state.branches.find(
+              (b) => b.id === branchId
+            );
+            if (branchToDelete.items.length > 0) {
+              alert("Cannot delete a branch with items in it.");
+              return;
+            }
+            if (confirm(`Delete branch "${branchToDelete.name}"?`)) {
+              state.branches = state.branches.filter((b) => b.id !== branchId);
+              logTransaction(
+                "DELETE_BRANCH",
+                branchToDelete.name,
+                `Branch "${branchToDelete.name}" was deleted.`
+              );
+              saveData("branches", state.branches);
+              renderBranches();
+              renderDashboard();
+              if (window.location.hash === `#branch-${branchId}`)
+                window.location.hash = "#dashboard";
+            }
+          }
+        });
+        roleSwitcher.addEventListener("change", (e) =>
+          updateUserRole(e.target.value)
+        );
+        searchBar.addEventListener("input", handleSearch);
+        mobileSearchBar.addEventListener("input", handleSearch);
+        mobileSearchBtn.addEventListener("click", () =>
+          mobileSearchContainer.classList.toggle("hidden")
+        );
+        resetDataBtn.addEventListener("click", () => {
+          if (confirm("Reset ALL data? This cannot be undone.")) {
+            localStorage.clear();
+            window.location.reload();
+          }
+        });
+
+        // --- INITIALIZATION ---
+        const init = () => {
+          renderBranches();
+          roleSwitcher.value = state.currentUserRole;
+          updateUserRole(state.currentUserRole);
+          const currentHash = window.location.hash || "#dashboard";
+          showView(currentHash);
+        };
+        init();
+      });
+    </script>
+  </body>
+</html>
